@@ -1,0 +1,57 @@
+{
+  "metricas": {
+    "total_testes": 5,
+    "acuracia_sentimento_pct": 100.0,
+    "acuracia_urgencia_pct": 100.0,
+    "acuracia_setor_pct": 100.0,
+    "eficacia_banco_pct": 100.0,
+    "tempo_total_segundos": 0.005205869674682617
+  },
+  "detalhes": [
+    {
+      "id": 1,
+      "titulo": "Atraso Crítico em Entrega de Hardware",
+      "sentimento_ok": true,
+      "urgencia_ok": true,
+      "setor_ok": true,
+      "banco_ok": true,
+      "latencia_ms": 3.002643585205078
+    },
+    {
+      "id": 2,
+      "titulo": "Cobrança Duplicada no Cartão de Crédito",
+      "sentimento_ok": true,
+      "urgencia_ok": true,
+      "setor_ok": true,
+      "banco_ok": true,
+      "latencia_ms": 1.9984245300292969
+    },
+    {
+      "id": 3,
+      "titulo": "Falha Técnica / Crash no Sistema",
+      "sentimento_ok": true,
+      "urgencia_ok": true,
+      "setor_ok": true,
+      "banco_ok": true,
+      "latencia_ms": 0.2048015594482422
+    },
+    {
+      "id": 4,
+      "titulo": "Cotação Comercial para Compra Corporativa em Lote",
+      "sentimento_ok": true,
+      "urgencia_ok": true,
+      "setor_ok": true,
+      "banco_ok": true,
+      "latencia_ms": 0.0
+    },
+    {
+      "id": 5,
+      "titulo": "Elogio de Entrega com Solicitação de 2ª Via de NF",
+      "sentimento_ok": true,
+      "urgencia_ok": true,
+      "setor_ok": true,
+      "banco_ok": true,
+      "latencia_ms": 0.0
+    }
+  ]
+}

@@ -1,0 +1,184 @@
+{
+  "name": "Agente de Triagem e Roteamento de Chamados",
+  "description": "Fluxo Langflow para Triagem de Tickets com Análise de Sentimento, Urgência, Consulta a Banco SQLite de Pedidos e Roteamento Setorial.",
+  "data": {
+    "nodes": [
+      {
+        "id": "ChatInput-node",
+        "type": "ChatInput",
+        "position": { "x": 100, "y": 250 },
+        "data": {
+          "type": "ChatInput",
+          "node": {
+            "template": {
+              "input_value": {
+                "type": "str",
+                "value": "Estou furioso! Comprei o notebook no pedido #10423 e não recebi até hoje!",
+                "name": "input_value",
+                "display_name": "Mensagem do Ticket / E-mail"
+              },
+              "should_store_message": {
+                "type": "bool",
+                "value": true,
+                "name": "should_store_message"
+              }
+            },
+            "description": "Recebe o texto do ticket de suporte ou e-mail do cliente.",
+            "display_name": "Entrada do Ticket (Chat Input)"
+          }
+        }
+      },
+      {
+        "id": "CustomComponent-db-node",
+        "type": "CustomComponent",
+        "position": { "x": 480, "y": 220 },
+        "data": {
+          "type": "CustomComponent",
+          "node": {
+            "template": {
+              "code": {
+                "type": "code",
+                "value": "from langflow.custom import Component\nfrom langflow.io import MessageTextInput, Output\nfrom langflow.schema import Message\nimport sqlite3\nimport re\nimport os\n\nclass TriageDatabaseLookup(Component):\n    display_name = \"Consulta Banco Pedidos SQLite\"\n    description = \"Consulta dados do pedido no banco de dados e enriquece o contexto.\"\n    icon = \"database\"\n\n    inputs = [\n        MessageTextInput(\n            name=\"mensagem_ticket\",\n            display_name=\"Mensagem do Ticket\",\n            value=\"\",\n            info=\"Texto do chamado recebido\"\n        ),\n        MessageTextInput(\n            name=\"caminho_banco\",\n            display_name=\"Arquivo SQLite\",\n            value=\"pedidos.db\",\n            info=\"Caminho relativo ou absoluto para o arquivo pedidos.db\"\n        )\n    ]\n\n    outputs = [\n        Output(display_name=\"Contexto Enriquecido\", name=\"contexto_enriquecido\", method=\"processar\")\n    ]\n\n    def processar(self) -> Message:\n        texto = self.mensagem_ticket\n        match = re.search(r\"(PED-\\d{4,6}|#\\d{4,6}|\\b\\d{5}\\b)\", texto, re.IGNORECASE)\n        pedido_id = match.group(0).upper().replace(\"#\", \"\") if match else None\n        if pedido_id and pedido_id.isdigit():\n            pedido_id = f\"PED-{pedido_id}\"\n\n        db_path = self.caminho_banco\n        if not os.path.exists(db_path):\n            alt = os.path.join(os.getcwd(), db_path)\n            if os.path.exists(alt):\n                db_path = alt\n\n        info_db = \"Nenhum ID de pedido detectado ou pedido não localizado no banco.\"\n        if pedido_id and os.path.exists(db_path):\n            try:\n                conn = sqlite3.connect(db_path)\n                conn.row_factory = sqlite3.Row\n                cursor = conn.cursor()\n                cursor.execute(\"SELECT * FROM pedidos WHERE UPPER(id) = ?\", (pedido_id,))\n                row = cursor.fetchone()\n                conn.close()\n                if row:\n                    d = dict(row)\n                    info_db = (\n                        f\"DADOS DO PEDIDO LOCALIZADO NO BANCO:\\n\"\n                        f\"- ID: {d['id']}\\n\"\n                        f\"- Cliente: {d['cliente_nome']}\\n\"\n                        f\"- Produto: {d['produto']}\\n\"\n                        f\"- Status Atual: {d['status']}\\n\"\n                        f\"- Rastreio: {d['codigo_rastreio']}\\n\"\n                        f\"- Previsão Entrega: {d['previsao_entrega']}\\n\"\n                        f\"- Transportadora: {d['transportadora']}\\n\"\n                        f\"- Observações Internas: {d['observacoes']}\"\n                    )\n            except Exception as e:\n                info_db = f\"Erro ao consultar banco SQLite: {e}\"\n\n        prompt_formatado = (\n            f\"TICKET DO CLIENTE:\\n{texto}\\n\\n\"\n            f\"CONSULTA AO BANCO DE DADOS:\\n{info_db}\\n\"\n        )\n        return Message(text=prompt_formatado)\n",
+                "name": "code"
+              },
+              "mensagem_ticket": {
+                "type": "str",
+                "value": "",
+                "name": "mensagem_ticket",
+                "display_name": "Mensagem do Ticket"
+              },
+              "caminho_banco": {
+                "type": "str",
+                "value": "pedidos.db",
+                "name": "caminho_banco",
+                "display_name": "Arquivo SQLite"
+              }
+            },
+            "description": "Componente Python customizado para consulta ao SQLite (pedidos.db).",
+            "display_name": "Consulta Banco SQLite (Custom Component)"
+          }
+        }
+      },
+      {
+        "id": "PromptTemplate-node",
+        "type": "Prompt",
+        "position": { "x": 880, "y": 200 },
+        "data": {
+          "type": "Prompt",
+          "node": {
+            "template": {
+              "template": {
+                "type": "str",
+                "value": "Você é um Agente Especialista em Triagem, Classificação e Roteamento de Chamados de Suporte.\n\nAnalise as informações abaixo:\n{contexto}\n\nSUAS TAREFAS:\n1. SENTIMENTO: Identifique se o tom é POSITIVO, NEUTRO ou NEGATIVO.\n2. URGÊNCIA: Classifique em BAIXA, MEDIA, ALTA ou CRITICA.\n3. SETOR RESPONSÁVEL: Direcione para LOGISTICA, FINANCEIRO, SUPORTE_TECNICO ou COMERCIAL.\n4. RESUMO EXECUTIVO: Sintetize o caso em até 2 linhas.\n5. AÇÃO INTERNA RECOMENDADA: O que a equipe de atendimento deve fazer.\n6. RESPOSTA AO CLIENTE: Minuta formal e empática pronta para ser enviada.\n\nRetorne as respostas organizadas com tópicos claros e objetivos.",
+                "name": "template",
+                "display_name": "Template de Prompt"
+              },
+              "contexto": {
+                "type": "str",
+                "value": "",
+                "name": "contexto",
+                "display_name": "Contexto do Chamado e Banco"
+              }
+            },
+            "description": "Template de engenharia de prompt para instruir o LLM na triagem.",
+            "display_name": "Prompt de Triagem (Prompt Template)"
+          }
+        }
+      },
+      {
+        "id": "OpenAIModel-node",
+        "type": "OpenAIModel",
+        "position": { "x": 1260, "y": 220 },
+        "data": {
+          "type": "OpenAIModel",
+          "node": {
+            "template": {
+              "model_name": {
+                "type": "str",
+                "value": "gpt-4o-mini",
+                "name": "model_name",
+                "display_name": "Nome do Modelo"
+              },
+              "temperature": {
+                "type": "float",
+                "value": 0.1,
+                "name": "temperature",
+                "display_name": "Temperatura"
+              },
+              "api_key": {
+                "type": "str",
+                "value": "",
+                "name": "api_key",
+                "display_name": "OpenAI API Key (ou via .env)"
+              },
+              "input_value": {
+                "type": "str",
+                "value": "",
+                "name": "input_value",
+                "display_name": "Input Message"
+              }
+            },
+            "description": "Modelo de Linguagem (LLM) responsável pela inferência e classificação.",
+            "display_name": "Modelo de Linguagem (OpenAI / Groq LLM)"
+          }
+        }
+      },
+      {
+        "id": "ChatOutput-node",
+        "type": "ChatOutput",
+        "position": { "x": 1640, "y": 250 },
+        "data": {
+          "type": "ChatOutput",
+          "node": {
+            "template": {
+              "input_value": {
+                "type": "str",
+                "value": "",
+                "name": "input_value",
+                "display_name": "Texto de Saída"
+              }
+            },
+            "description": "Apresenta o relatório final de triagem e a resposta sugerida.",
+            "display_name": "Saída da Triagem (Chat Output)"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "source": "ChatInput-node",
+        "target": "CustomComponent-db-node",
+        "sourceHandle": "message",
+        "targetHandle": "mensagem_ticket",
+        "id": "edge-input-to-db"
+      },
+      {
+        "source": "CustomComponent-db-node",
+        "target": "PromptTemplate-node",
+        "sourceHandle": "contexto_enriquecido",
+        "targetHandle": "contexto",
+        "id": "edge-db-to-prompt"
+      },
+      {
+        "source": "PromptTemplate-node",
+        "target": "OpenAIModel-node",
+        "sourceHandle": "prompt",
+        "targetHandle": "input_value",
+        "id": "edge-prompt-to-llm"
+      },
+      {
+        "source": "OpenAIModel-node",
+        "target": "ChatOutput-node",
+        "sourceHandle": "text",
+        "targetHandle": "input_value",
+        "id": "edge-llm-to-output"
+      }
+    ],
+    "viewport": {
+      "x": 50,
+      "y": 100,
+      "zoom": 0.85
+    }
+  }
+}
+

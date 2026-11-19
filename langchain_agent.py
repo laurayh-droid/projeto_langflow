@@ -358,7 +358,7 @@ class AgenteTriagemLangChain:
 
         # Passo 4: Estrutura final com metadados
         return {
-            "triagem": resultado_triagem.model_dump(),
+            "triagem": resultado_triagem.model_dump(mode="json"),
             "consulta_banco": {
                 "pedido_pesquisado": id_pedido,
                 "encontrado": dados_banco is not None,

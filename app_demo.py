@@ -19,36 +19,37 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Estilização personalizada
-st.markdown("""
-<style>
-    .main-header {
-        font-size: 2.2rem;
-        font-weight: 700;
-        color: #1E3A8A;
-        margin-bottom: 0.2rem;
-    }
-    .sub-header {
-        font-size: 1.1rem;
-        color: #4B5563;
-        margin-bottom: 1.5rem;
-    }
-    .card-metric {
-        background-color: #F8FAFC;
-        border-radius: 10px;
-        padding: 15px;
-        border-left: 5px solid #3B82F6;
-        margin-bottom: 10px;
-    }
-    .badge-critica { background-color: #FEE2E2; color: #991B1B; padding: 4px 10px; border-radius: 12px; font-weight: bold; }
-    .badge-alta { background-color: #FFEDD5; color: #C2410C; padding: 4px 10px; border-radius: 12px; font-weight: bold; }
-    .badge-media { background-color: #FEF3C7; color: #B45309; padding: 4px 10px; border-radius: 12px; font-weight: bold; }
-    .badge-baixa { background-color: #DCFCE7; color: #166534; padding: 4px 10px; border-radius: 12px; font-weight: bold; }
-    .badge-negativo { background-color: #FEE2E2; color: #991B1B; padding: 4px 10px; border-radius: 12px; font-weight: bold; }
-    .badge-neutro { background-color: #E2E8F0; color: #334155; padding: 4px 10px; border-radius: 12px; font-weight: bold; }
-    .badge-positivo { background-color: #DCFCE7; color: #166534; padding: 4px 10px; border-radius: 12px; font-weight: bold; }
-</style>
-""", unsafe_allow_html=True)
+# Função auxiliar para garantir textos uniformes e sem prefixos de Enum
+def formatar_texto_enum(valor) -> str:
+    if valor is None:
+        return ""
+    if hasattr(valor, "value"):
+        valor = valor.value
+    s = str(valor)
+    if "." in s:
+        s = s.split(".")[-1]
+    return s.strip().upper()
+
+# Dicionários de exibição elegante e amigável
+ICONES_SENTIMENTO = {
+    "NEGATIVO": "Negativo 🔴",
+    "POSITIVO": "Positivo 🟢",
+    "NEUTRO": "Neutro ⚪"
+}
+
+ICONES_URGENCIA = {
+    "CRITICA": "Crítica 🔥",
+    "ALTA": "Alta ⚠️",
+    "MEDIA": "Média 🟡",
+    "BAIXA": "Baixa 🟢"
+}
+
+ICONES_SETOR = {
+    "LOGISTICA": "Logística 🚚",
+    "FINANCEIRO": "Financeiro 💳",
+    "SUPORTE_TECNICO": "Suporte Técnico 💻",
+    "COMERCIAL": "Comercial 💼"
+}
 
 
 # Inicializa o agente na sessão do Streamlit
@@ -86,10 +87,11 @@ st.sidebar.info("""
 # ABA 1: TRIAGEM DE CHAMADOS AO VIVO
 # =========================================================================
 if menu == "🚀 Triagem de Chamados (Demonstração)":
-    st.markdown('<div class="main-header">🤖 Triagem e Roteamento Inteligente de Chamados</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sub-header">Demonstração interativa do agente alimentado pelo ecossistema LangChain e Langflow.</div>', unsafe_allow_html=True)
+    st.title("🤖 Triagem e Roteamento Inteligente de Chamados")
+    st.caption("Demonstração interativa do agente alimentado pelo ecossistema LangChain e Langflow.")
+    st.write("")
 
-    col1, col2 = st.columns([1, 1])
+    col1, col2 = st.columns([1, 1], gap="large")
 
     with col1:
         st.subheader("📥 Entrada do Chamado / E-mail")
@@ -141,7 +143,7 @@ if menu == "🚀 Triagem de Chamados (Demonstração)":
         texto_ticket = st.text_area(
             "Conteúdo do e-mail / ticket:",
             value=texto_padrao,
-            height=220,
+            height=200,
             placeholder="Cole aqui o e-mail ou mensagem de suporte..."
         )
 
@@ -158,22 +160,20 @@ if menu == "🚀 Triagem de Chamados (Demonstração)":
                 triagem = resultado["triagem"]
                 banco = resultado["consulta_banco"]
 
-                # Métricas em colunas
+                # Limpeza e formatação de valores
+                sent_raw = formatar_texto_enum(triagem["sentimento"])
+                urg_raw = formatar_texto_enum(triagem["urgencia"])
+                setor_raw = formatar_texto_enum(triagem["setor_responsavel"])
+
+                sent_fmt = ICONES_SENTIMENTO.get(sent_raw, sent_raw)
+                urg_fmt = ICONES_URGENCIA.get(urg_raw, urg_raw)
+                setor_fmt = ICONES_SETOR.get(setor_raw, setor_raw)
+
+                # Métricas principais em colunas nativas do Streamlit (letras uniformes e sem quebras feias)
                 m1, m2, m3 = st.columns(3)
-                
-                # Sentimento badge
-                sent = triagem["sentimento"]
-                classe_sent = "badge-negativo" if sent == "NEGATIVO" else ("badge-positivo" if sent == "POSITIVO" else "badge-neutro")
-                m1.markdown(f"**Sentimento:**<br><span class='{classe_sent}'>{sent}</span>", unsafe_allow_html=True)
-
-                # Urgência badge
-                urg = triagem["urgencia"]
-                classe_urg = f"badge-{urg.lower()}"
-                m2.markdown(f"**Urgência:**<br><span class='{classe_urg}'>{urg}</span>", unsafe_allow_html=True)
-
-                # Setor badge
-                setor = triagem["setor_responsavel"]
-                m3.markdown(f"**Setor Roteado:**<br><span class='badge-neutro'>🏢 {setor}</span>", unsafe_allow_html=True)
+                m1.metric(label="Sentimento", value=sent_fmt)
+                m2.metric(label="Urgência", value=urg_fmt)
+                m3.metric(label="Setor Roteado", value=setor_fmt)
 
                 st.write("")
                 
@@ -181,7 +181,7 @@ if menu == "🚀 Triagem de Chamados (Demonstração)":
                 if banco["encontrado"]:
                     d = banco["detalhes"]
                     st.success(
-                        f"📦 **Pedido Localizado no SQLite:** `{d['id']}` - **Cliente:** {d['cliente_nome']} | "
+                        f"📦 **Pedido Localizado no SQLite:** `{d['id']}` — **Cliente:** {d['cliente_nome']} | "
                         f"**Status:** `{d['status']}` | **Rastreio:** `{d.get('codigo_rastreio') or 'N/A'}`"
                     )
                 elif banco["pedido_pesquisado"]:
@@ -189,19 +189,24 @@ if menu == "🚀 Triagem de Chamados (Demonstração)":
                 else:
                     st.info("ℹ️ Nenhum ID de pedido detectado no texto.")
 
-                # Resumo e Ação
-                st.markdown(f"""
-                <div class="card-metric">
-                    <b>📋 Resumo Executivo do Problema:</b><br>{triagem['resumo_problema']}
-                </div>
-                <div class="card-metric" style="border-left-color: #10B981;">
-                    <b>🛠️ Ação Recomendada para a Equipe Interna:</b><br>{triagem['acao_recomendada']}
-                </div>
-                """, unsafe_allow_html=True)
+                # Resumo Executivo em container com borda nativa (fundo adaptável ao tema escuro/claro, sem blocos brancos)
+                with st.container(border=True):
+                    st.markdown("**📋 Resumo Executivo do Problema:**")
+                    st.write(triagem["resumo_problema"])
+
+                # Ação Recomendada em container com borda nativa
+                with st.container(border=True):
+                    st.markdown("**🛠️ Ação Recomendada para a Equipe Interna:**")
+                    st.write(triagem["acao_recomendada"])
 
                 # Minuta de Resposta
-                st.markdown("💬 **Minuta de Resposta Sugerida para o Cliente:**")
-                st.text_area("Resposta ao Cliente (pronta para envio):", value=triagem["resposta_sugerida_cliente"], height=120)
+                st.markdown("**💬 Minuta de Resposta Sugerida para o Cliente:**")
+                st.text_area(
+                    label="Resposta pronta para envio:",
+                    value=triagem["resposta_sugerida_cliente"],
+                    height=130,
+                    label_visibility="collapsed"
+                )
 
                 st.caption(f"⏱️ Tempo de inferência: {latencia:.1f}ms | Motor: {resultado['metadados']['motor']}")
         else:
@@ -212,10 +217,11 @@ if menu == "🚀 Triagem de Chamados (Demonstração)":
 # ABA 2: TESTES PRÁTICOS & ANÁLISE DE RESULTADOS
 # =========================================================================
 elif menu == "📊 Execução de Testes & Métricas":
-    st.markdown('<div class="main-header">📊 Bateria de Testes Práticos e Análise de Desempenho</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sub-header">Avaliação automatizada em cenários de alta complexidade do suporte ao cliente.</div>', unsafe_allow_html=True)
+    st.title("📊 Bateria de Testes Práticos e Análise de Desempenho")
+    st.caption("Avaliação automatizada em cenários de alta complexidade do suporte ao cliente.")
+    st.write("")
 
-    if st.button("▶️ Executar Todos os 5 Cenários de Teste"):
+    if st.button("▶️ Executar Todos os 5 Cenários de Teste", type="primary"):
         with st.spinner("Rodando testes..."):
             resultados = []
             for c in CASOS_DE_TESTE:
@@ -227,23 +233,27 @@ elif menu == "📊 Execução de Testes & Métricas":
                 banco = res["consulta_banco"]
                 esp = c["esperado"]
 
-                ok_sent = (triagem["sentimento"] == esp["sentimento"])
-                ok_urg = (triagem["urgencia"] == esp["urgencia"])
-                ok_setor = (triagem["setor_responsavel"] == esp["setor"])
+                sent_obt = formatar_texto_enum(triagem["sentimento"])
+                urg_obt = formatar_texto_enum(triagem["urgencia"])
+                setor_obt = formatar_texto_enum(triagem["setor_responsavel"])
+
+                ok_sent = (sent_obt == esp["sentimento"])
+                ok_urg = (urg_obt == esp["urgencia"])
+                ok_setor = (setor_obt == esp["setor"])
                 ok_banco = (banco["encontrado"] == esp["deve_encontrar_banco"])
 
                 resultados.append({
                     "ID": c["id"],
                     "Cenário": c["titulo"],
-                    "Sentimento Obtido": triagem["sentimento"],
-                    "Sentimento OK": "✅" if ok_sent else "❌",
-                    "Urgência Obtida": triagem["urgencia"],
-                    "Urgência OK": "✅" if ok_urg else "❌",
-                    "Setor Roteado": triagem["setor_responsavel"],
+                    "Sentimento": sent_obt,
+                    "Sent. OK": "✅" if ok_sent else "❌",
+                    "Urgência": urg_obt,
+                    "Urg. OK": "✅" if ok_urg else "❌",
+                    "Setor": setor_obt,
                     "Setor OK": "✅" if ok_setor else "❌",
-                    "Banco de Dados": f"{banco['pedido_pesquisado']} ({banco['encontrado']})",
+                    "Banco SQL": f"{banco['pedido_pesquisado'] or 'Nenhum'}",
                     "Banco OK": "✅" if ok_banco else "❌",
-                    "Latência (ms)": f"{t_ms:.1f}ms"
+                    "Tempo": f"{t_ms:.1f}ms"
                 })
 
             df_res = pd.DataFrame(resultados)
@@ -262,8 +272,9 @@ elif menu == "📊 Execução de Testes & Métricas":
 # ABA 3: BANCO DE DADOS (SQLITE)
 # =========================================================================
 elif menu == "🗄️ Banco de Dados de Pedidos (SQLite)":
-    st.markdown('<div class="main-header">🗄️ Base de Dados Corporativa de Pedidos</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sub-header">Tabela `pedidos` consultada pelo componente customizado do Langflow e pela LangChain Tool.</div>', unsafe_allow_html=True)
+    st.title("🗄️ Base de Dados Corporativa de Pedidos")
+    st.caption("Tabela `pedidos` consultada pelo componente customizado do Langflow e pela LangChain Tool.")
+    st.write("")
 
     pedidos = listar_todos_pedidos()
     df_pedidos = pd.DataFrame(pedidos)
@@ -276,8 +287,9 @@ elif menu == "🗄️ Banco de Dados de Pedidos (SQLite)":
 # ABA 4: ARQUITETURA LANGFLOW & LANGCHAIN
 # =========================================================================
 elif menu == "🧩 Arquitetura Langflow & LangChain":
-    st.markdown('<div class="main-header">🧩 Arquitetura Visual e Ecossistema LangChain</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sub-header">Mapeamento entre a interface visual do Langflow e os componentes de código do LangChain.</div>', unsafe_allow_html=True)
+    st.title("🧩 Arquitetura Visual e Ecossistema LangChain")
+    st.caption("Mapeamento entre a interface visual do Langflow e os componentes de código do LangChain.")
+    st.write("")
 
     st.markdown("""
     ### 🔄 Pipeline de Processamento Visual no Langflow:
@@ -290,12 +302,10 @@ elif menu == "🧩 Arquitetura Langflow & LangChain":
     ```
 
     ### 📦 Como importar no Langflow Web UI:
-    1. Instale ou ative o Langflow no terminal: `langflow run`
-    2. Acesse a interface web em `http://localhost:7860`
-    3. Clique no botão **"Import"** no canto superior direito.
-    4. Selecione o arquivo **`fluxo_langflow_triagem.json`** presente neste projeto.
-    5. O fluxo completo será carregado no Canvas visual pronto para teste no Playground!
+    1. Inicie o Langflow no terminal ou acesse o [Langflow Astra Cloud](https://langflow.astra.datastax.com/).
+    2. Clique no botão **"Import"** no canto superior direito.
+    3. Selecione o arquivo **`fluxo_langflow_triagem.json`** presente neste projeto.
+    4. O fluxo completo será carregado no Canvas visual pronto para teste no Playground!
     """)
 
     st.info("Arquivo de fluxo exportado: `fluxo_langflow_triagem.json` (pronto para uso).")
-
